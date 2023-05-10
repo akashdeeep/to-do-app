@@ -14,18 +14,22 @@ mongoose.connect("mongodb://localhost:27017/todolistDB", {
 });
 const itemsSchema = {
 	name: String,
+	status: String,
 };
 
 const Item = mongoose.model("Item", itemsSchema);
 
 const item1 = new Item({
 	name: "do GFG",
+	status: "not done",
 });
 const item2 = new Item({
 	name: "do Leetcode",
+	status: "not done",
 });
 const item3 = new Item({
 	name: "do git commit",
+	status: "not done",
 });
 const defaultItems = [item1, item2, item3];
 
@@ -34,13 +38,13 @@ app.get("/", (req, res) => {
 
 	Item.find().then((foundItems) => {
 		if (foundItems.length === 0) {
-			Item.insertMany(defaultItems, (err) => {
-				if (err) {
-					console.log(err);
-				} else {
+			try {
+				Item.insertMany(defaultItems).then(() => {
 					console.log("Successfully saved default items to DB.");
-				}
-			});
+				});
+			} catch (err) {
+				console.log(err);
+			}
 			res.redirect("/");
 		} else {
 			res.render("list", { listTitle: day, newListItems: foundItems });
@@ -55,6 +59,18 @@ app.post("/", (req, res) => {
 	});
 	item.save();
 	res.redirect("/");
+});
+app.post("/delete", (req, res) => {
+	const checkboxId = req.body.checkbox;
+	console.log(checkboxId);
+	try {
+		Item.findByIdAndRemove(checkboxId).then(() => {
+			console.log("Successfully deleted checked item.");
+			res.redirect("/");
+		});
+	} catch (err) {
+		console.log(err);
+	}
 });
 
 app.get("/work", (req, res) => {

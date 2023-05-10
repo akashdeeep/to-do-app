@@ -4,6 +4,7 @@ const date = require(__dirname + "/date.js");
 const mongoose = require("mongoose");
 const app = express();
 const port = 3000;
+const _ = require("lodash");
 app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
@@ -63,27 +64,54 @@ app.get("/", (req, res) => {
 
 app.post("/", (req, res) => {
 	var itemName = req.body.newItem;
+	var listName = req.body.list;
 	const item = new Item({
 		name: itemName,
 	});
-	item.save();
-	res.redirect("/");
+	if (listName === date.getDate()) {
+		item.save();
+		res.redirect("/");
+	} else {
+		try {
+			List.findOne({ name: listName }).then((foundList) => {
+				foundList.items.push(item);
+				foundList.save();
+				res.redirect("/" + listName);
+			});
+		} catch (err) {
+			console.log(err, "post error");
+		}
+	}
 });
 app.post("/delete", (req, res) => {
 	const checkboxId = req.body.checkbox;
-	console.log(checkboxId);
-	try {
-		Item.findByIdAndRemove(checkboxId).then(() => {
-			console.log("Successfully deleted checked item.");
-			res.redirect("/");
-		});
-	} catch (err) {
-		console.log(err, "delete error");
+	const listName = req.body.listName;
+	// console.log(checkboxId);
+	if (listName === date.getDate()) {
+		try {
+			Item.findByIdAndRemove(checkboxId).then(() => {
+				console.log("Successfully deleted checked item.");
+				res.redirect("/");
+			});
+		} catch (err) {
+			console.log(err, "delete error");
+		}
+	} else {
+		try {
+			List.findOneAndUpdate(
+				{ name: listName },
+				{ $pull: { items: { _id: checkboxId } } }
+			).then(() => {
+				res.redirect("/" + listName);
+			});
+		} catch (err) {
+			console.log(err, "delete error");
+		}
 	}
 });
 
 app.get("/:customListName", (req, res) => {
-	const customListName = req.params.customListName;
+	const customListName = _.capitalize(req.params.customListName);
 	try {
 		List.findOne({ name: customListName }).then((foundList) => {
 			if (!foundList) {

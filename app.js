@@ -32,24 +32,33 @@ const item3 = new Item({
 	status: "not done",
 });
 const defaultItems = [item1, item2, item3];
+const listSchema = {
+	name: String,
+	items: [itemsSchema],
+};
+
+const List = mongoose.model("List", listSchema);
 
 app.get("/", (req, res) => {
 	let day = date.getDate();
-
-	Item.find().then((foundItems) => {
-		if (foundItems.length === 0) {
-			try {
-				Item.insertMany(defaultItems).then(() => {
-					console.log("Successfully saved default items to DB.");
-				});
-			} catch (err) {
-				console.log(err);
+	try {
+		Item.find().then((foundItems) => {
+			if (foundItems.length === 0) {
+				try {
+					Item.insertMany(defaultItems).then(() => {
+						console.log("Successfully saved default items to DB.");
+					});
+				} catch (err) {
+					console.log(err, "insert error");
+				}
+				res.redirect("/");
+			} else {
+				res.render("list", { listTitle: day, newListItems: foundItems });
 			}
-			res.redirect("/");
-		} else {
-			res.render("list", { listTitle: day, newListItems: foundItems });
-		}
-	});
+		});
+	} catch (err) {
+		console.log(err);
+	}
 });
 
 app.post("/", (req, res) => {
@@ -69,13 +78,33 @@ app.post("/delete", (req, res) => {
 			res.redirect("/");
 		});
 	} catch (err) {
-		console.log(err);
+		console.log(err, "delete error");
 	}
 });
 
-app.get("/work", (req, res) => {
-	res.render("list", { listTitle: "Work List", newListItems: workItem });
+app.get("/:customListName", (req, res) => {
+	const customListName = req.params.customListName;
+	try {
+		List.findOne({ name: customListName }).then((foundList) => {
+			if (!foundList) {
+				const list = new List({
+					name: customListName,
+					items: [],
+				});
+				list.save();
+				res.redirect("/" + customListName);
+			} else {
+				res.render("list", {
+					listTitle: foundList.name,
+					newListItems: foundList.items,
+				});
+			}
+		});
+	} catch (err) {
+		console.log(err, "custom list error");
+	}
 });
+
 app.post("/work", (req, res) => {
 	var item = req.body.newItem;
 	workItem.push(item);
